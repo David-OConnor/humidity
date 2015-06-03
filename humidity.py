@@ -1,4 +1,4 @@
-from math import e, log, log10
+from math import e, log10
 
 import pandas as pd
 
@@ -22,38 +22,24 @@ constants = pd.DataFrame(
 
 
 def vap_pres_sat(temp):
-    """Return vapor saturation pressure, for air. temp is in C."""
+    """Return vapor saturation pressure in hPa, for air. temp is in C."""
 
     T = temp + 273.15  # Temperature in K
     Tc = 647.096  # Critical temperature, in K
     Pc = 220640  # Critical pressure in hPa
-    C1 = -7.85951783
-    C2 = 1.84408259
-    C3 = -11.7866497
-    C4 = 22.6807411
-    C5 = -15.9618719
-    C6 = 1.80122502
+    c1 = -7.85951783
+    c2 = 1.84408259
+    c3 = -11.7866497
+    c4 = 22.6807411
+    c5 = -15.9618719
+    c6 = 1.80122502
 
     v = 1 - (T / Tc)
 
     # Water vapour saturation pressure. Note: This is only valid between 0 and
-    # 373C; ie not ice. There's a different formula for that.
-    return e ** ((Tc / T) * (C1*v + C2*v**1.5 + C3*v**3 + C4*v**3.5 + C5*v**4 +
-                             C6*v**7.5)) * Pc
-
-
-def dewpoint(Pws, rel_hum, temp=30):
-    """Calculate the dewpoint."""
-
-    Pw = Pws * rel_hum
-    # todo add bit about different pressure ratio.
-
-    # todo temp way of table handling
-    A = constants.loc['-20_50', 'A']
-    m = constants.loc['-20_50', 'm']
-    Tn = constants.loc['-20_50', 'Tn']
-
-    return Tn / (m / log10(Pw/A) - 1)
+    # 373c; ie not ice. There's a different formula for that.
+    return e ** ((Tc / T) * (c1*v + c2*v**1.5 + c3*v**3 + c4*v**3.5 + c5*v**4 +
+                             c6*v**7.5)) * Pc
 
 
 def rel_hum(Td, Tambient):
@@ -63,41 +49,80 @@ def rel_hum(Td, Tambient):
     return vap_pres_sat(Td) / vap_pres_sat(Tambient)
 
 
-def mixing_ratio(Pw, Ptot):
-    """Calculate mixing ratio; the mass of water vapor / mass od dry gas.
-     ie specific humidity."""
-    # Ptot is the total air pressure. Pw is the vapor pressure.
-    # B is in g / kg, and depends on the gas; this value is valid for air.
-    B = 621.9907
-
-    return B * Pw / (Ptot - Pw)
-
-
 def enthalpy(temp, X):
     """Calculate enthalpy, in kJ/kg."""
-    # X is mixing ratio, ie specific humidity.
+    # X is mixing ratio.
     return temp * (1.01 + .00189 * X) + 2.5 * X
 
 
-def abs_humidity(temp, Pw):
-    """Calculate absolute humidity, in g/m**3"""
+def mixing_ratio(Ptot, temp=None, RH=None, Pw=None):
+    """Calculate mixing ratio, in g/kg; the mass of water vapor / 
+    mass of dry gas. Specific humidity is a related concept: the mass of water
+    vapor / total air mass. Must specify either temp, or RH and Pw."""
+
+    # Ptot is the total air pressure. Pw is the vapor pressure. Both are in hPa.
+    # B is in g / kg, and depends on the gas; this value is valid for air.
+
+    # Input arguments are Ptot and Pw.
+    if Pw is not None and RH is None and temp is None:
+        B = 621.9907
+        return B * Pw / (Ptot - Pw)
+
+    # Input arguments are Ptot, temp and RH.
+    elif temp is not None and RH is not None and Pw is None:
+        Pws = vap_pres_sat(temp)
+        Pw = Pws * RH
+        return mixing_ratio(Ptot, Pw=Pw)
+
+    else:
+        raise AttributeError("Must specificy either temp, or RH and Pw.")
+
+
+def abs_humidity(temp, RH=None, Pw=None):
+    """Calculate absolute humidity, in g/m**3. Must specify one of temp or Pw."""
     # Pw is the vapor pressure, in hPa. temp is in C.
 
-    C = 2.16679  # Constant, in gK / J
-    T = temp + 273.15
-    Pw *= 100  # Convert from hPa to Pa, for desired output units.
+    # Input arguments are temp and Pw.
+    if Pw is not None and RH is None:
+        C = 2.16679  # Constant, in gK / J
+        T = temp + 273.15
+        Pw *= 100  # Convert from hPa to Pa, for desired output units.
 
-    return C * Pw / T
+        return C * Pw / T
+
+    # Input arguments are temp and RH.
+    elif RH is not None and Pw is None:
+        Pws = vap_pres_sat(temp)
+        Pw = Pws * RH
+        return abs_humidity(temp, Pw=Pw)
+
+    else:
+        raise AttributeError("Must specificy exactly one of rel_hum and Pw.")
 
 
-def dewpoint2(temp, rel_hum):
-    Pws = vap_pres_sat(temp)
+def dewpoint(RH, temp=None, Pws=None, P_ratio=1):
+    """Calculate the dewpoint, in C. Must specify either Pws, or temp. temp
+    can be specified along with Pws to help find correct constants."""
 
-    return dewpoint(Pws, rel_hum, temp)
+    # P_ratio is used when for calculating the dewpoint at a different
+    # pressure. It's the ratio of the new pressure the the old. # todo Backwards?
 
+    # Pws is specified. temp is optional, and used only to determined which
+    # constants to use. If unspecified, use for temp range of -20 to 50C.
+    if Pws is not None:
+        Pw = Pws * RH * P_ratio
 
-def abs_humidity2(temp, rel_hum):
-    Pws = vap_pres_sat(temp)
-    Pw = Pws * rel_hum
+        # todo temp way of table handling
+        A = constants.loc['-20_50', 'A']
+        m = constants.loc['-20_50', 'm']
+        Tn = constants.loc['-20_50', 'Tn']
 
-    return abs_humidity(temp, Pw)
+        return Tn / (m / log10(Pw/A) - 1)
+
+    # Pw is unspecified. Calculate it using temp.
+    elif temp is not None and Pws is None:
+        Pws = vap_pres_sat(temp)
+        return dewpoint(RH, temp=temp, Pws=Pws)
+
+    else:
+        raise AttributeError("Must specfify at least one of temp and PWs.")

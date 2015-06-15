@@ -1,4 +1,4 @@
-from math import e, log10
+from math import atan, e, log10
 
 import pandas as pd
 
@@ -126,3 +126,68 @@ def dewpoint(RH, temp=None, Pws=None, P_ratio=1):
 
     else:
         raise AttributeError("Must specfify at least one of temp and PWs.")
+
+
+def dewpoint_depression(temp, RH):
+    """Calculate dewpoint depression; the difference between (dry-bulb)
+    temperature and dewpoint, in C."""
+    return temp - dewpoint(RH, temp)
+
+
+def wetbulb(T_dry, RH):
+    """Estimate wet bulb temperature, given dry bulb temperature and relative
+    humidity."""
+    # From http://journals.ametsoc.org/doi/pdf/10.1175/JAMC-D-11-0143.1
+    # Note that this isn't an exact formula, but is based on a best-fit plot
+    # of recorded data. Assumes sea level pressure of 1013.25 hPa.
+
+    RH *= 100  # The paper this formula reference using RH as a percent
+    # instead of a portion. This formula takes a portion as input.
+
+    # c1-6 are constants.
+    c1 = 0.151977
+    c2 = 8.3131659
+    c3 = 1.676331
+    c4 = 0.00391838
+    c5 = 0.023101
+    c6 = 4.686035
+
+    return T_dry * atan(c1 * (RH + c2)**.5) + atan(T_dry + RH) - atan(RH - c3) +\
+           c4 * RH**1.5 * atan(c5 * RH) - c6
+
+
+def report(temp, RH, air_pressure, precision=2):
+    """Display several humidity metrics for a given temperature, relative humidity,
+    and air pressure. temp is in C, RH is a portion, and air_pressure is in hPa."""
+
+    # precision is the number of decimal places to round the results to.
+    # Note: Air pressure currently only affects the mixing ratio result.
+
+    dewpoint_ = dewpoint(RH, temp=temp)
+    
+    mixing_ratio_ = mixing_ratio(air_pressure, temp=temp, RH=RH)
+    abs_humidity_ = abs_humidity(temp, RH=RH)
+    wetbulb_temp = wetbulb(temp, RH)
+    vap_pres_sat_ = vap_pres_sat(temp)
+    vap_pres = vap_pres_sat_ * RH
+
+    dewpoint_depression_ = temp - dewpoint_
+    wetbulb_depression_ = temp - wetbulb_temp
+
+    vars = (dewpoint_, mixing_ratio_, abs_humidity_, wetbulb_temp,
+           dewpoint_depression_, wetbulb_depression_, vap_pres_sat_, vap_pres)
+
+    vars_rounded = (round(var, precision) for var in vars)
+
+    display = \
+"""\nDewpoint: {} °C
+Mixing ratio: {} g/Kg
+Absolute humidity: {} g/m^3
+Wetbulb temperature: {} °C
+Dewpoint depression: {} °C
+Wetbulb depression: {} °C
+Vapor pressure saturation: {} hPa
+Vapor pressure: {} hPa""".format(*vars_rounded)
+
+    print(display)
+

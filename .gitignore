@@ -2,12 +2,12 @@
 build/
 dist/
 __pycache__/
+.ipynb_checkpoints/
 *~
 Thumbs.db
 
 # PyCharm
 *iws
 workspace.xml
-
 
 # Project-specific

@@ -2,15 +2,14 @@
 #http://www.vaisala.com/Vaisala%20Documents/
 #Application%20notes/Humidity_Conversion_Formulas_B210973EN-F.pdf
 
-#module Humidity
+module Humidity
 
-#export vap_pres_sat, report
+export enthalpy, vap_pres_sat, report
+
+import DataFrames
 
 
-using DataFrames
-
-
-constants = DataFrame(
+constants = DataFrames.DataFrame(
     row_temp_mins = [-20, 50, 100, 150, 200, 0, -70],
     row_temp_maxes = [50, 100, 150, 200, 350, 200, 0],
     A = [6.116441, 6.004918, 5.856548, 6.002859, 9.980622, 6.089613, 6.113732],
@@ -42,15 +41,13 @@ function vap_pres_sat(temp::Real)
 end
 
 
-function rel_hum(Td, Tambient)
+function rel_hum(dewpoint, ambient_temp)
     #"""Calculate relative humidity for a given temperature, and mixing ratio."""
-    # Td is the dewpoint, Tambient is air temperature, both in C.
-
-    vap_pres_sat(Td) / vap_pres_sat(Tambient)
+    vap_pres_sat(dewpoint) / vap_pres_sat(ambient_temp)
 end
 
 
-function rel_hum2(Td, Tambient)
+function rel_hum2(Td, ambient_temp)
     #"""Calculate relative humidity, with"""
     # todo merge with rel_hum function above. Also, make this function.
     # todo add it to humidity.py too.
@@ -63,7 +60,7 @@ end
 function enthalpy(temp::Number, X::Number)
     #"""Calculate enthalpy, in kJ/kg."""
     # X is mixing ratio, ie specific humidity.
-    temp * (1.01 + .00189X) + 2.5X
+    temp * (1.01 + 0.00189X) + 2.5X
 end
 
 
@@ -92,17 +89,17 @@ function mixing_ratio(Ptot; temp = 69, RH = 69, Pw = 69)
 end
 
 
-function abs_humidity(temp; RH=69, Pw=69)
+function abs_humidity(temp; RH = 69, Pw = 69)
     #"""Calculate absolute humidity, in g/m^3. Must specify one of temp or Pw."""
     # Pw is the vapor pressure, in hPa. temp is in C.
 
     # Input arguments are temp and Pw.
     if Pw != 69 && RH == 69
         C = 2.16679  # Constant, in gK / J
-        T = temp + 273.15
+        temp_kelvin = temp + 273.15
         Pw *= 100  # Convert from hPa to Pa, for desired output units.
 
-        C * Pw / T
+        C * Pw / temp_kelvin
 
     # Input arguments are temp and RH.
     elseif RH != 69 && Pw == 69
@@ -146,7 +143,7 @@ function dewpoint(RH; temp=69, Pws=69, P_ratio=1)
 end
 
 
-function wetbulb(T_dry, RH)
+function wetbulb(temp_dry, RH)
     #"""Estimate wet bulb temperature, given dry bulb temperature and relative
     #humidity."""
     # From http://journals.ametsoc.org/doi/pdf/10.1175/JAMC-D-11-0143.1
@@ -164,7 +161,7 @@ function wetbulb(T_dry, RH)
     c5 = 0.023101
     c6 = 4.686035
 
-    T_dry * atan(c1 * (RH + c2)^.5) + atan(T_dry + RH) - atan(RH - c3) +
+    temp_dry * atan(c1 * (RH + c2)^0.5) + atan(temp_dry + RH) - atan(RH - c3) +
     c4 * RH^1.5 * atan(c5 * RH) - c6
 end
            
@@ -214,5 +211,5 @@ Vapor pressure: $(round(vap_pres, precision)) hPa"
 end
 
 
-#end
+end
 

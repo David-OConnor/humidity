@@ -1,0 +1,101 @@
+vap_pres_sat :: Float -> Float 
+vap_pres_sat temp =
+    let t = temp + 273.15  -- Temperature in K
+        tc = 647.096  -- Critical temperature, in K
+        pc = 220640  -- Critical pressure in hPa
+        c1 = -7.85951783
+        c2 = 1.84408259
+        c3 = -11.7866497
+        c4 = 22.6807411
+        c5 = -15.9618719
+        c = 1.80122502
+        c6 = 1.80122502
+        e = 2.718281828459045
+        v = 1 - (t / tc)
+    in  e ** ((tc / t) * (c1*v + c2*v**1.5 + c3*v**3 + c4*v**3.5 + c5*v**4 + c6*v**7.5)) * pc
+
+
+rel_hum :: Float -> Float -> Float
+rel_hum dewpoint ambient_temp = vap_pres_sat(dewpoint) / vap_pres_sat(ambient_temp)
+
+
+enthalpy :: Float -> Float -> Float
+-- x is the mixing ratio.
+enthalpy temp x = temp * (1.01 + 0.00189 * x) + 2.5 * x
+
+
+mixing_ratio :: Float -> Float -> Float
+mixing_ratio p_total pw = b * pw / (p_total - pw)
+    where b = 621.9907
+
+          
+abs_humidity :: Float -> Float -> Float
+abs_humidity temp pw = constant * pw_pa / temp_k
+    where constant = 2.16679 -- in gK / J
+          temp_k = temp + 273.15
+          pw_pa = pw * 100 -- Convert from hPa to Pa, for desired output units.
+          
+          
+dewpoint :: Float -> Float -> Float-> Float
+dewpoint rel_humidity pws p_ratio = 
+    let pw = pws * rel_humidity * p_ratio
+        a = 5
+        m = 5
+        tn = 5
+    in tn / (m / (logBase 10 pw/a) - 1)
+    
+
+wetbulb :: Float -> Float -> Float
+wetbulb temp_dry rh2 = temp_dry * atan(c1 * (rh + c2)**0.5) + atan(temp_dry + rh) - atan(rh - c3) +  c4 * rh**1.5 * atan(c5 * rh) - c6
+    where rh = rh2 * 100
+          -- c1-6 are constants.
+          c1 = 0.151977
+          c2 = 8.3131659
+          c3 = 1.676331
+          c4 = 0.00391838
+          c5 = 0.023101
+          c6 = 4.686035
+
+
+dewpoint_depression :: Float -> Float -> Float
+dewpoint_depression temp rel_humidity = temp - (dewpoint rel_humidity pws p_ratio)
+    where pws = vap_pres_sat temp
+          p_ratio = 1
+          
+          
+wetbulb_depression :: Float -> Float -> Float
+wetbulb_depression temp rel_humidity = temp - (wetbulb temp rel_humidity)
+
+
+report :: Float -> Float -> Float -> Float -> IO ()
+report temp rel_humidity air_pressure precision =           
+    let p_ratio = 1
+        pws = vap_pres_sat temp
+        pw = pws * rel_humidity
+        dewpoint_ = dewpoint rel_humidity pws p_ratio
+        mixing_ratio_ = mixing_ratio air_pressure pw
+        abs_humidity_ = abs_humidity temp rel_humidity
+        wetbulb_temp = wetbulb temp rel_humidity
+        dewpoint_depression_ = temp - dewpoint_
+        wetbulb_depression_ = temp - wetbulb_temp
+                 
+    in putStrLn ("\nDewpoint: " ++ show dewpoint_ ++ 
+    "\nMixing ratio: " ++ show mixing_ratio_ ++
+    "\nAbsolute humidity: " ++ show abs_humidity_ ++
+    "\nWetbulb temperature: " ++ show wetbulb_temp
+    )
+    
+    
+    
+--"Dewpoint: $(round(dewpoint_, precision)) °C
+--Mixing ratio: $(round(mixing_ratio_, precision)) g/Kg
+--Absolute humidity: $(round(abs_humidity_, precision)) g/m^3
+--Wetbulb temperature: $(round(wetbulb_temp, precision)) °C
+--Dewpoint depression: $(round(dewpoint_depression_, precision)) °C
+--Wetbulb depression: $(round(wetbulb_depression_, precision)) °C
+--Vapor pressure saturation: $(round(vap_pres_sat_, precision)) hPa
+--Vapor pressure: $(round(vap_pres, precision)) hPa"
+
+          
+          
+          

@@ -42,17 +42,15 @@ def vap_pres_sat(temp):
                              c6*v**7.5)) * Pc
 
 
-def rel_hum(Td, Tambient):
+def rel_hum(dewpoint, ambient_temp):
     """Calculate relative humidity."""
-    # Td is the dewpoint, Tambient is air temperature, both in C.
-
-    return vap_pres_sat(Td) / vap_pres_sat(Tambient)
+    return vap_pres_sat(dewpoint) / vap_pres_sat(ambient_temp)
 
 
 def enthalpy(temp, X):
     """Calculate enthalpy, in kJ/kg."""
     # X is mixing ratio.
-    return temp * (1.01 + .00189 * X) + 2.5 * X
+    return temp * (1.01 + 0.00189 * X) + 2.5 * X
 
 
 def mixing_ratio(Ptot, temp=None, RH=None, Pw=None):
@@ -134,7 +132,7 @@ def dewpoint_depression(temp, RH):
     return temp - dewpoint(RH, temp)
 
 
-def wetbulb(T_dry, RH):
+def wetbulb(temp_dry, RH):
     """Estimate wet bulb temperature, given dry bulb temperature and relative
     humidity."""
     # From http://journals.ametsoc.org/doi/pdf/10.1175/JAMC-D-11-0143.1
@@ -152,8 +150,8 @@ def wetbulb(T_dry, RH):
     c5 = 0.023101
     c6 = 4.686035
 
-    return T_dry * atan(c1 * (RH + c2)**.5) + atan(T_dry + RH) - atan(RH - c3) +\
-           c4 * RH**1.5 * atan(c5 * RH) - c6
+    return temp_dry * atan(c1 * (RH + c2)**0.5) + atan(temp_dry + RH) -\
+           atan(RH - c3) + c4 * RH**1.5 * atan(c5 * RH) - c6
 
 
 def report(temp, RH, air_pressure, precision=2):

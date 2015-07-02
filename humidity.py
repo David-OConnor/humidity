@@ -161,19 +161,18 @@ def report(temp, RH, air_pressure, precision=2):
     # precision is the number of decimal places to round the results to.
     # Note: Air pressure currently only affects the mixing ratio result.
 
-    dewpoint_ = dewpoint(RH, temp=temp)
-    
-    mixing_ratio_ = mixing_ratio(air_pressure, temp=temp, RH=RH)
-    abs_humidity_ = abs_humidity(temp, RH=RH)
-    wetbulb_temp = wetbulb(temp, RH)
-    vap_pres_sat_ = vap_pres_sat(temp)
-    vap_pres = vap_pres_sat_ * RH
+    Pws = vap_pres_sat(temp)
+    Pw = Pws * RH
 
+    dewpoint_ = dewpoint(RH, temp=temp, Pws=Pws)
+    mixing_ratio_ = mixing_ratio(air_pressure, Pw=Pw)
+    abs_humidity_ = abs_humidity(temp, Pw=Pw)
+    wetbulb_temp = wetbulb(temp, RH)
     dewpoint_depression_ = temp - dewpoint_
     wetbulb_depression_ = temp - wetbulb_temp
 
     vars = (dewpoint_, mixing_ratio_, abs_humidity_, wetbulb_temp,
-           dewpoint_depression_, wetbulb_depression_, vap_pres_sat_, vap_pres)
+           dewpoint_depression_, wetbulb_depression_, Pws, Pw)
 
     vars_rounded = (round(var, precision) for var in vars)
 

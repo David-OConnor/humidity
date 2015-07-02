@@ -198,7 +198,8 @@ function report(temp, RH, air_pressure, precision=2)
     wetbulb_depression_ = temp - wetbulb_temp
 
     display = 
-"Dewpoint: $(round(dewpoint_, precision)) °C
+"
+Dewpoint: $(round(dewpoint_, precision)) °C
 Mixing ratio: $(round(mixing_ratio_, precision)) g/Kg
 Absolute humidity: $(round(abs_humidity_, precision)) g/m^3
 Wetbulb temperature: $(round(wetbulb_temp, precision)) °C

@@ -1,3 +1,14 @@
+import Text.Printf
+
+--simplified version with only the -20 to 50 temp range.
+--Practicing guards, and not sure what the elegant way is.
+constants :: String -> Float
+constants col_name
+    | col_name == "A" = 6.116441
+    | col_name == "m" = 7.591386
+    | col_name == "Tn" = 240.7263
+
+
 vap_pres_sat :: Float -> Float 
 vap_pres_sat temp =
     let t = temp + 273.15  -- Temperature in K
@@ -12,7 +23,8 @@ vap_pres_sat temp =
         c6 = 1.80122502
         e = 2.718281828459045
         v = 1 - (t / tc)
-    in  e ** ((tc / t) * (c1*v + c2*v**1.5 + c3*v**3 + c4*v**3.5 + c5*v**4 + c6*v**7.5)) * pc
+    in  e ** ((tc / t) * (c1*v + c2*v**1.5 + c3*v**3 + c4*v**3.5 + c5*v**4 + 
+        c6*v**7.5)) * pc
 
 
 rel_hum :: Float -> Float -> Float
@@ -39,10 +51,10 @@ abs_humidity temp pw = constant * pw_pa / temp_k
 dewpoint :: Float -> Float -> Float-> Float
 dewpoint rel_humidity pws p_ratio = 
     let pw = pws * rel_humidity * p_ratio
-        a = 5
-        m = 5
-        tn = 5
-    in tn / (m / (logBase 10 pw/a) - 1)
+        a = constants "A"
+        m = constants "m"
+        tn = constants "Tn"
+    in tn / (m / (logBase 10 (pw/a)) - 1)
     
 
 wetbulb :: Float -> Float -> Float
@@ -67,35 +79,31 @@ wetbulb_depression :: Float -> Float -> Float
 wetbulb_depression temp rel_humidity = temp - (wetbulb temp rel_humidity)
 
 
-report :: Float -> Float -> Float -> Float -> IO ()
+roundToStr :: (PrintfArg a, Floating a) => Int -> a -> String
+roundToStr n f = printf ("%0." ++ show n ++ "f") f
+
+
+report :: Float -> Float -> Float -> Int -> IO ()
 report temp rel_humidity air_pressure precision =           
     let p_ratio = 1
         pws = vap_pres_sat temp
         pw = pws * rel_humidity
         dewpoint_ = dewpoint rel_humidity pws p_ratio
         mixing_ratio_ = mixing_ratio air_pressure pw
-        abs_humidity_ = abs_humidity temp rel_humidity
+        abs_humidity_ = abs_humidity temp pw
         wetbulb_temp = wetbulb temp rel_humidity
         dewpoint_depression_ = temp - dewpoint_
         wetbulb_depression_ = temp - wetbulb_temp
                  
-    in putStrLn ("\nDewpoint: " ++ show dewpoint_ ++ 
-    "\nMixing ratio: " ++ show mixing_ratio_ ++
-    "\nAbsolute humidity: " ++ show abs_humidity_ ++
-    "\nWetbulb temperature: " ++ show wetbulb_temp
+    in putStrLn ("\nDewpoint: " ++ roundToStr precision dewpoint_ ++ " °C" ++
+    "\nMixing ratio: " ++ roundToStr precision mixing_ratio_ ++ " g/Kg" ++
+    "\nAbsolute humidity: " ++ roundToStr precision abs_humidity_ ++ " g/m^3" ++
+    "\nWetbulb temperature: " ++ roundToStr precision wetbulb_temp ++ " °C" ++
+    "\nDewpoint depression: " ++ roundToStr precision dewpoint_depression_ ++ " °C" ++
+    "\nWetbulb depression: " ++ roundToStr precision wetbulb_depression_ ++ " °C" ++
+    "\nVapor pressure saturation: " ++ roundToStr precision pws ++ " hPa" ++
+    "\nVapor pressure: " ++ roundToStr precision pw ++ " hPa"
     )
-    
-    
-    
---"Dewpoint: $(round(dewpoint_, precision)) °C
---Mixing ratio: $(round(mixing_ratio_, precision)) g/Kg
---Absolute humidity: $(round(abs_humidity_, precision)) g/m^3
---Wetbulb temperature: $(round(wetbulb_temp, precision)) °C
---Dewpoint depression: $(round(dewpoint_depression_, precision)) °C
---Wetbulb depression: $(round(wetbulb_depression_, precision)) °C
---Vapor pressure saturation: $(round(vap_pres_sat_, precision)) hPa
---Vapor pressure: $(round(vap_pres, precision)) hPa"
-
           
           
           

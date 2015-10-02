@@ -48,7 +48,7 @@ abs_humidity temp pw = constant * pw_pa / temp_k
           pw_pa = pw * 100 -- Convert from hPa to Pa, for desired output units.
           
           
-dewpoint :: Float -> Float -> Float-> Float
+dewpoint :: Float -> Float -> Float -> Float
 dewpoint rel_humidity pws p_ratio = 
     let pw = pws * rel_humidity * p_ratio
         a = constants "A"
@@ -95,7 +95,8 @@ report temp rel_humidity air_pressure precision =
         dewpoint_depression_ = temp - dewpoint_
         wetbulb_depression_ = temp - wetbulb_temp
                  
-    in putStrLn ("\nDewpoint: " ++ roundToStr precision dewpoint_ ++ " °C" ++
+    in putStrLn (
+    "\nDewpoint: " ++ roundToStr precision dewpoint_ ++ " °C" ++
     "\nMixing ratio: " ++ roundToStr precision mixing_ratio_ ++ " g/Kg" ++
     "\nAbsolute humidity: " ++ roundToStr precision abs_humidity_ ++ " g/m^3" ++
     "\nWetbulb temperature: " ++ roundToStr precision wetbulb_temp ++ " °C" ++
